@@ -1,8 +1,7 @@
 
-# hyper-reverse-proxy
+# httprxy
 
 [![License][license-img]](LICENSE)
-[![CI][ci-img]][ci-url]
 [![docs][docs-img]][docs-url]
 [![version][version-img]][version-url]
 
@@ -22,11 +21,46 @@ and adds the client's IP address to a comma-space-separated list of forwarding a
 
 The implementation is based on Go's [`httputil.ReverseProxy`].
 
-[Hyper]: http://hyper.rs/
-[Hop-by-hop headers]: http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
-[`httputil.ReverseProxy`]: https://golang.org/pkg/net/http/httputil/#ReverseProxy
+- [Hyper](http://hyper.rs/)
+- [Hop-by-hop headers](http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html)
+- [httputil.ReverseProxy](https://golang.org/pkg/net/http/httputil/#ReverseProxy)
 
-# Example
+## Running demo
+Start two or multiple servers,
+```bash
+python3 remote_server.py 1223 # 1223 is the port number
+python3 remote_server.py 1224 # 1224 is the port number
+```
+
+Inside [examples/main.rs](examples/main.rs), add `route:forware_uri` mapping for the `shared_map`.
+This will replicate records coming from some data store.
+```rust
+let shared_map: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::from([
+    ("/server1".to_string(), "http://127.0.0.1:1223".to_string()),
+    ("/server2".to_string(), "http://127.0.0.1:1224".to_string()),
+])));
+```
+
+Then run the example by calling
+
+```bash
+RUST_LOG=error,info,trace cargo run --example main
+```
+
+*Note* The python scripts a bit slow to start
+
+One the python scripts has started, send random requests to with registered paths,
+```bash
+ curl -XPOST http://127.0.0.1:8000/server1 -d '{"message":"this message will go to server 1 on port 1223"}'
+ curl -XPOST http://127.0.0.1:8000/server1 -d '{"message":"hello world"}'
+ # ... n requests
+```
+
+If a request do not match, it will be sent to debug route.
+
+![screenshot](screenshot-1.png)
+
+## Example
 
 Add these dependencies to your `Cargo.toml` file.
 
