@@ -2,16 +2,8 @@
 # httprxy
 
 [![License][license-img]](LICENSE)
-[![docs][docs-img]][docs-url]
-[![version][version-img]][version-url]
 
 [license-img]: https://img.shields.io/crates/l/hyper-reverse-proxy.svg
-[ci-img]: https://github.com/felipenoris/hyper-reverse-proxy/workflows/CI/badge.svg
-[ci-url]: https://github.com/felipenoris/hyper-reverse-proxy/actions/workflows/main.yml
-[docs-img]: https://docs.rs/hyper-reverse-proxy/badge.svg
-[docs-url]: https://docs.rs/hyper-reverse-proxy
-[version-img]: https://img.shields.io/crates/v/hyper-reverse-proxy.svg
-[version-url]: https://crates.io/crates/hyper-reverse-proxy
 
 A simple reverse proxy, to be used with [Hyper].
 
