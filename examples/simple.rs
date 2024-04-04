@@ -50,8 +50,8 @@ async fn main() {
 
     // Shared, thread-safe map with initial values
     let shared_map: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::from([
-        ("server1".to_string(), "http://127.0.0.1:1122".to_string()),
-        ("server2".to_string(), "http://127.0.0.1:1123".to_string()),
+        ("/server1".to_string(), "http://127.0.0.1:1122".to_string()),
+        ("/server2".to_string(), "http://127.0.0.1:1123".to_string()),
     ])));
 
     let make_svc = make_service_fn(|conn: &AddrStream| {
