@@ -1,13 +1,13 @@
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, StatusCode};
-use hyper_reverse_proxy::ReverseProxy;
 use hyper_trust_dns::{TrustDnsHttpConnector, TrustDnsResolver};
 use std::net::IpAddr;
 use std::{convert::Infallible, net::SocketAddr};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use log::{error, info, trace};
+use httprxy::ReverseProxy;
 
 lazy_static::lazy_static! {
      static ref PROXY_CLIENT: ReverseProxy<TrustDnsHttpConnector> = {
