@@ -7,6 +7,7 @@ use std::net::IpAddr;
 use std::{convert::Infallible, net::SocketAddr};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use log::{error, info, trace};
 
 lazy_static::lazy_static! {
      static ref PROXY_CLIENT: ReverseProxy<TrustDnsHttpConnector> = {
@@ -17,18 +18,20 @@ lazy_static::lazy_static! {
 }
 
 fn debug_request(req: &Request<Body>) -> Result<Response<Body>, Infallible> {
+    trace!("target path did not match");
+
     let body_str = format!("{:?}", req);
     Ok(Response::new(Body::from(body_str)))
 }
 
 async fn handle(map: HashMap<String, String>, client_ip: IpAddr, req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    println!("m {:#?}",map);
-
     let path = req.uri().path();
 
     match map.get(path) {
         None => { debug_request(&req) } // just trace
         Some(forward_uri) => {
+            trace!("forwarding to {}",forward_uri);
+            
             match PROXY_CLIENT
                 .call(client_ip, forward_uri, req)
                 .await
@@ -50,8 +53,8 @@ async fn main() {
 
     // Shared, thread-safe map with initial values
     let shared_map: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::from([
-        ("/server1".to_string(), "http://127.0.0.1:1122".to_string()),
-        ("/server2".to_string(), "http://127.0.0.1:1123".to_string()),
+        ("/server1".to_string(), "http://127.0.0.1:1223".to_string()),
+        ("/server2".to_string(), "http://127.0.0.1:1224".to_string()),
     ])));
 
     let make_svc = make_service_fn(|conn: &AddrStream| {
@@ -68,9 +71,9 @@ async fn main() {
 
     let server = Server::bind(&addr).serve(make_svc);
 
-    println!("Running server on {:?}", addr);
+    info!("running server on {:?}",addr);
 
     if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
+        error!("server error: {}", e);
     }
 }
