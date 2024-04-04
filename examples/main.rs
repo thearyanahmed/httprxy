@@ -31,7 +31,7 @@ async fn handle(map: HashMap<String, String>, client_ip: IpAddr, req: Request<Bo
         None => { debug_request(&req) } // just trace
         Some(forward_uri) => {
             trace!("forwarding to {}",forward_uri);
-            
+
             match PROXY_CLIENT
                 .call(client_ip, forward_uri, req)
                 .await
@@ -48,6 +48,8 @@ async fn handle(map: HashMap<String, String>, client_ip: IpAddr, req: Request<Bo
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     let bind_addr = "127.0.0.1:8000";
     let addr: SocketAddr = bind_addr.parse().expect("Could not parse ip:port.");
 
@@ -56,6 +58,8 @@ async fn main() {
         ("/server1".to_string(), "http://127.0.0.1:1223".to_string()),
         ("/server2".to_string(), "http://127.0.0.1:1224".to_string()),
     ])));
+
+    info!("registering service");
 
     let make_svc = make_service_fn(|conn: &AddrStream| {
         let remote_addr = conn.remote_addr().ip();
