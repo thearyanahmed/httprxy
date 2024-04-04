@@ -2,14 +2,14 @@ use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, StatusCode};
 use hyper_reverse_proxy::ReverseProxy;
-use hyper_trust_dns::{RustlsHttpsConnector, TrustDnsResolver};
+use hyper_trust_dns::{TrustDnsHttpConnector, TrustDnsResolver};
 use std::net::IpAddr;
 use std::{convert::Infallible, net::SocketAddr};
 
 lazy_static::lazy_static! {
-    static ref  PROXY_CLIENT: ReverseProxy<RustlsHttpsConnector> = {
+     static ref PROXY_CLIENT: ReverseProxy<TrustDnsHttpConnector> = {
         ReverseProxy::new(
-            hyper::Client::builder().build::<_, hyper::Body>(TrustDnsResolver::default().into_rustls_webpki_https_connector()),
+            hyper::Client::builder().build::<_, Body>(TrustDnsResolver::default().into_http_connector()),
         )
     };
 }
