@@ -1,13 +1,17 @@
+use httprxy::ReverseProxy;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, StatusCode};
 use hyper_trust_dns::{TrustDnsHttpConnector, TrustDnsResolver};
-use std::net::IpAddr;
-use std::{convert::Infallible, net::SocketAddr};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use log::{error, info, trace};
-use httprxy::ReverseProxy;
+use std::collections::HashMap;
+use std::net::{IpAddr, TcpStream};
+use std::sync::{Arc, Mutex};
+use std::{convert::Infallible, net::SocketAddr};
+
+use std::io;
+use std::net::TcpListener;
+use std::thread;
 
 lazy_static::lazy_static! {
      static ref PROXY_CLIENT: ReverseProxy<TrustDnsHttpConnector> = {
@@ -24,25 +28,67 @@ fn debug_request(req: &Request<Body>) -> Result<Response<Body>, Infallible> {
     Ok(Response::new(Body::from(body_str)))
 }
 
-async fn handle(map: HashMap<String, String>, client_ip: IpAddr, req: Request<Body>) -> Result<Response<Body>, Infallible> {
+fn try_or_continue<T, E>(result: Result<T, E>) -> Option<T> {
+    match result {
+        Ok(val) => Some(val),
+        Err(_) => None,
+    }
+}
+
+async fn handle(
+    map: HashMap<String, String>,
+    client_ip: IpAddr,
+    req: Request<Body>,
+) -> Result<Response<Body>, Infallible> {
     let path = req.uri().path();
 
-    match map.get(path) {
-        None => { debug_request(&req) } // just trace
-        Some(forward_uri) => {
-            trace!("forwarding to {}",forward_uri);
+    let proxy_addr = "127.0.0.1:8000";
+    let to_addr = "http://127.0.0.1:1223";
 
-            match PROXY_CLIENT
-                .call(client_ip, forward_uri, req)
-                .await
-            {
-                Ok(response) => Ok(response),
-                Err(_error) => Ok(Response::builder()
-                    .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Body::empty())
-                    .unwrap()),
+    let listener = TcpListener::bind(proxy_addr).expect("Unable to bind proxy addr");
+
+    println!("Proxing TCP packets from {} to {}", proxy_addr, to_addr);
+
+    for incoming_stream in listener.incoming() {
+        let proxy_stream = match try_or_continue(incoming_stream) {
+            Some(val) => val,
+            None => {
+                // Handle the error or continue with your logic
+                // For example:
+                println!("Failed to get incoming stream, continuing...");
+                continue;
+            }
+        };
+
+        let conn_thread = TcpStream::connect(to_addr)
+            .map(|to_stream| thread::spawn(move || handle_conn(proxy_stream, to_stream)));
+
+        match conn_thread {
+            Ok(_) => {
+                println!("Successfully established a connection with client");
+            }
+            Err(err) => {
+                println!("Unable to establish a connection with client {}", err);
             }
         }
+    }
+    Ok(())
+}
+
+fn handle_conn(lhs_stream: TcpStream, rhs_stream: TcpStream) {
+    let lhs_arc = Arc::new(lhs_stream);
+    let rhs_arc = Arc::new(rhs_stream);
+
+    let (mut lhs_tx, mut lhs_rx) = (lhs_arc.try_clone().unwrap(), lhs_arc.try_clone().unwrap());
+    let (mut rhs_tx, mut rhs_rx) = (rhs_arc.try_clone().unwrap(), rhs_arc.try_clone().unwrap());
+
+    let connections = vec![
+        thread::spawn(move || io::copy(&mut lhs_tx, &mut rhs_rx).unwrap()),
+        thread::spawn(move || io::copy(&mut rhs_tx, &mut lhs_rx).unwrap()),
+    ];
+
+    for t in connections {
+        t.join().unwrap();
     }
 }
 
@@ -75,7 +121,7 @@ async fn main() {
 
     let server = Server::bind(&addr).serve(make_svc);
 
-    info!("running server on {:?}",addr);
+    info!("running server on {:?}", addr);
 
     if let Err(e) = server.await {
         error!("server error: {}", e);
