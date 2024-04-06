@@ -2,7 +2,7 @@ use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, StatusCode};
 use hyper_trust_dns::{TrustDnsHttpConnector, TrustDnsResolver};
-use std::net::{IpAddr, TcpStream};
+use std::net::{IpAddr, TcpListener, TcpStream};
 use std::{convert::Infallible, net::SocketAddr};
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -26,45 +26,16 @@ fn debug_request(req: &Request<Body>) -> Result<Response<Body>, Infallible> {
     Ok(Response::new(Body::from(body_str)))
 }
 
-async fn proxy(_forward_uri: &str, req: Request<Body>) -> Result<Response<Body>, Infallible>  {
-    // Parse the destination address and port from the forward URI
-    // let mut parts = forward_uri.split(':');
+async fn proxy(forward_uri: &str, req: Request<Body>) -> Result<Response<Body>, Infallible>  {
 
-    // println!("parts : {:#?}", parts);
+    let listener = TcpListener::bind(forward_uri).await?;
 
-    // let _dest_ip = parts.next().expect("Invalid forward URI");
-    // let _dest_port: u16 = parts.next().expect("Invalid forward URI").parse().expect("Invalid port");
-
-
-    // Connect to the destination TCP server
-    let mut socket = TcpStream::connect("127.0.0.1:1234").unwrap();
-    let req_str = format!(
-        "{} {} {:?}\r\n{:?}\r\n",
-        req.method(),
-        req.uri(),
-        req.version(),
-        req.headers()
-    );
-
-    trace!("req_str {:#?}" , req_str);
-
-    socket.write_all(req_str.as_bytes()).unwrap();
-
-    // Forward the request body
-    let mut req_body = req.into_body();
-    while let Some(chunk) = req_body.next().await {
-        let chunk = chunk.unwrap();
-        socket.write_all(&chunk).unwrap();
-    }
-
-    // Read the response from the TCP server
-    let mut response = Vec::new();
-    socket.read_to_end(&mut response).unwrap();
 
     // Create a response with the received data
     Ok(Response::builder()
         .status(StatusCode::OK)
-        .body(Body::from(response))
+        // .body(Body::from(response))
+        .body(Body::empty())
         .unwrap())
 }
 
