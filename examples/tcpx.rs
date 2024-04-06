@@ -44,6 +44,7 @@ fn main() {
             thread::spawn(move || handle_connection(&mut proxy_stream, &mut origin_stream));
         thread_handles.push(handle);
     }
+
     for handle in thread_handles {
         handle.join().expect("Unable to join child thread");
     }
